@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 const otpGenerator = require('otp-generator')
+const bcrypt = require('bcrypt');
 
 // sendOTP
 exports.sendOTP = async (req, res) => {
@@ -38,16 +39,16 @@ exports.sendOTP = async (req, res) => {
                     specialChars: false
                 }
             );
-            
+
         }
 
-        const otpPayload = {email , otp};
+        const otpPayload = { email, otp };
         const otpBody = await OTP.create(otpPayload);
         console.log(otpBody);
 
         res.status(200).json({
-            success : true,
-            message : "otp sent successfully",
+            success: true,
+            message: "otp sent successfully",
             otp,
         })
 
@@ -56,15 +57,15 @@ exports.sendOTP = async (req, res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({
-            success : false,
-            message : err.message,
+            success: false,
+            message: err.message,
         })
     }
 }
 
 // signUp
 exports.signUp = async (req, res) => {
-    try{
+    try {
 
         // fetch data from request body
         const {
@@ -79,38 +80,78 @@ exports.signUp = async (req, res) => {
         } = req.body;
 
         // validate the fetched data
-        if(!firstName || !lastName || !email || !password || !confirmPassword || !otp){
+        if (!firstName || !lastName || !email || !password || !confirmPassword || !otp) {
             return res.status(403).json({
-                success : false,
-                message : "Enter all the required fields"
+                success: false,
+                message: "Enter all the required fields"
             })
         }
-        if(password !== confirmPassword){
+        if (password !== confirmPassword) {
             return res.status(400).json({
-                success : false,
-                message : "Passwords and confirmPassword do not match"
+                success: false,
+                message: "Passwords and confirmPassword do not match"
             })
         }
 
         // check if the user already exists or not
-        const existingUser = await User.findOne({email});
-        if(existingUser){
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
             return res.status(400).json({
-                success : false,
-                message : 'User already exists'
+                success: false,
+                message: 'User already exists'
             })
         }
 
         // find most recently created otp for user
-        const recentOtp = OTP.find({email}).sort({createdAt:-1}).limit(1);
+        const recentOtp = OTP.find({ email }).sort({ createdAt: -1 }).limit(1);
+        console.log(recentOtp);
 
-        const newUser = await User.create({
-            FirstName : req.body.firstName,
-            LastName : req.body.lastName
+        // validate Otp
+        if (recentOtp.length == 0) {
+            return res.status(400).json({
+                success: false,
+                message: "OTP Not Found"
+            })
+        } else if (otp !== recentOtp.otp) {
+            return res.status(400).json({
+                success: false,
+                message: "OTP Invalid"
+            })
+        }
+
+        // Hash the Password
+        const hashedPassword = await bcrypt.hash(password , 10);
+
+        const profileDetails = await Profile.create({
+            gender:null,
+            dateOfBirth:null,
+            about:null,
+            contactNumber:null,
         });
 
+        // create a new user in the database
+        const user = await User.create({
+            firstName,
+            lastName,
+            email,
+            contactNumber,
+            password: hashedPassword,
+            accountType,
+            additionalDetails: profileDetails._id,
+            image: `http://api.dicebear.com/5.x/initials/svg?seed=${firstName} ${lastName}`
+        })
+        console.log(user);
 
-    }catch (err) {
+        return res.status(200).json({
+            success: true,
+            message: "User created successfully",
+            user,
+        })
 
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            message: err.message,
+        })
     }
 }
