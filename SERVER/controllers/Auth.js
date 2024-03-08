@@ -2,6 +2,9 @@ const User = require('../models/User');
 const OTP = require('../models/OTP');
 const otpGenerator = require('otp-generator')
 const bcrypt = require('bcrypt');
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+
 
 // sendOTP
 exports.sendOTP = async (req, res) => {
@@ -154,4 +157,79 @@ exports.signUp = async (req, res) => {
             message: err.message,
         })
     }
+}
+
+// Login user
+exports.login = async (req, res) => {
+    try{
+        // fetch data from the body
+        const {email , password} = req.body;
+
+        // validate email and password
+        if(!email || !password){
+            return res.status(401).json({
+                success: false,
+                message: "Invalid email or password",
+            })
+        }
+
+        // check if user exists or not 
+        const user = await User.findOne({email}).populate("additionalDetals");
+        if(!user){
+            return res.status(401).json({
+                success:false,
+                message:"User does not exist , please sign in first"
+            });
+        }
+
+        // Generate jwt token after matching the password
+        if(await bcrypt.compare(password, user.password)){
+            const payload = {
+                email: user.email,
+                id : user._id,
+                role: user.role,
+            }
+            const token = jwt.sign(payload , process.env.JWT_SECRET , {
+                expiresIn: "2h"
+            })
+            user.token = token;
+            user.password = undefined;
+
+            // cookies generate 
+            const option = {
+                expires : new Date(Date.now() + 3*24*60*60*1000),
+                httpOnly: true,
+            }
+            res.cookie("token",token,option).status(200).json({
+                success: true,
+                token,
+                user,
+                message: "login successful"
+            })
+        }
+        else{
+            return res.status(401).json({
+                success: false,
+                message: "password is incorrect"
+            })
+        }
+
+    }catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            success: false,
+            message:"login failed , please try again"
+        });
+    }
+};
+
+exports.changePassword = async (req , res) =>{
+    // get data from request body
+    // get old password new password confirm password
+    const {password , newPassword , confirmPassword} = req.body;
+    
+    // validate password
+    // update new password confirm password in database
+    // send mail password updated
+    // return response
 }
