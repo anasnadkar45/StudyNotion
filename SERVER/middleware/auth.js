@@ -41,10 +41,54 @@ exports.auth = async (req, res, next) => {
 
 // isStudent Middleware
 exports.isStudent = async(req, res, next) => {
-
+    try{
+        if(req.user.accountType !== 'Student'){
+            return res.status(401).json({
+                success: false,
+                message:"This is protected route for student only"
+            })
+        }
+        next();
+    }catch(err){
+        return res.status(500).json({
+            success: false,
+            message:"User role cannot be verified , please try again"
+        })
+    }
 }
 
-// idInstructor Middleware
-
+// isInstructor Middleware
+exports.isInstructor = async(req, res, next) => {
+    try{
+        if(req.user.accountType !== 'Instructor'){
+            return res.status(401).json({
+                success: false,
+                message:"This is protected route for Instructor only"
+            })
+        }
+        next();
+    }catch(err){
+        return res.status(500).json({
+            success: false,
+            message:"User role cannot be verified , please try again"
+        })
+    }
+}
 
 // isAdmin Middleware
+exports.isAdmin = async(req, res, next) => {
+    try{
+        if(req.user.accountType !== 'Admin'){
+            return res.status(401).json({
+                success: false,
+                message:"This is protected route for Admin only"
+            })
+        }
+        next();
+    }catch(err){
+        return res.status(500).json({
+            success: false,
+            message:"User role cannot be verified , please try again"
+        })
+    }
+}
